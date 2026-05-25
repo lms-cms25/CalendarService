@@ -11,4 +11,9 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.14.14" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\CalendarService.Application\CalendarService.Application.csproj" />
+    <ProjectReference Include="..\CalendarService.Infrastructure\CalendarService.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>
