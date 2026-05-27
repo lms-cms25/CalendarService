@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Event> Events { get; set; }
     public DbSet<Classroom> Classrooms { get; set; }
     public DbSet<LiveClass> LiveClasses { get; set; }
+    public DbSet<StudentCourse> StudentCourses { get; set; }
 
     // Denna metod används för att konfigurera detaljer i tabellerna (Fluent API)
     protected override void OnModelCreating(ModelBuilder modelBuilder)
