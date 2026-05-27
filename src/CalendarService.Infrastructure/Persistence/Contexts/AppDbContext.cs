@@ -1,10 +1,11 @@
-﻿using CalendarService.Domain.Entities;
+﻿using CalendarService.Application.Interfaces;
+using CalendarService.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 
 namespace CalendarService.Infrastructure.Persistence.Contexts;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options), IAppDbContext
 {
 
     // 💡 Här talar vi om vilka tabeller som ska finnas i databasen
