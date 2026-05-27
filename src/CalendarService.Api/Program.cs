@@ -13,6 +13,9 @@ builder.Services.AddIdentityServices(builder.Configuration);
 builder.Services.AddApplication();
 builder.Services.AddPersistence(builder.Configuration, builder.Environment);
 
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(typeof(CalendarService.Application.Features.StudentCourses.Commands.RegisterStudentCourseCommand).Assembly));
+
 var app = builder.Build();
 
 app.UseCors("All");

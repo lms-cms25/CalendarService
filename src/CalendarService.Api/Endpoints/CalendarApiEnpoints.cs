@@ -1,9 +1,12 @@
-﻿using CalendarService.Application.Events.Commands.CreateEvent;
+﻿using CalendarService.Application.Dtos.Requests;
+using CalendarService.Application.Events.Commands.CreateEvent;
 using CalendarService.Application.Events.Commands.DeleteEvent;
 using CalendarService.Application.Events.Commands.UpdateEvent;
 using CalendarService.Application.Events.Queries.GetAllEvents;
 using CalendarService.Application.Events.Queries.GetEventById;
 using CalendarService.Application.Events.Queries.GetStudentCalendar;
+using CalendarService.Application.Features.StudentCourses.Commands;
+using MediatR;
 using Microsoft.AspNetCore.Authorization; // 💡 Behövs för AuthorizeAttribute
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -102,6 +105,33 @@ public static class CalendarApiEnpoints
                 ? Results.Ok(result.Value)        // Ändrade till result.Value för att matcha din Result-struktur
                 : Results.BadRequest(result.ErrorMessage); // Ändrade till result.ErrorMessage
         });
+
+
+        // 1. POST: Registrera en student på en kurs internt
+        group.MapPost("/student/register", async (
+            RegisterStudentCourseRequest model,
+            [FromServices] IMediator mediator) =>
+        {
+            var command = new RegisterStudentCourseCommand(model.UserId, model.CourseId);
+            var result = await mediator.Send(command);
+
+            return result
+                ? Results.Ok(new { Message = $"Användare {model.UserId} har registrerats på kurs {model.CourseId} internt i kalendern." })
+                : Results.BadRequest("Kunde inte slutföra registreringen.");
+        })
+        .WithName("RegisterStudentCourse");
+
+        // 2. GET: Hämta kalendern baserat på UserId
+        group.MapGet("/student/{userId}/calendar", async (
+            string userId,
+            [FromServices] IMediator mediator) =>
+        {
+            var query = new GetStudentCalendarQuery(userId);
+            var calendar = await mediator.Send(query);
+
+            return Results.Ok(calendar);
+        })
+        .WithName("GetStudentCalendar"); 
     }
 
 }
