@@ -3,10 +3,14 @@
 public class Event
 {
     // EF Core kräver denna tomma
-    protected Event() : this(string.Empty, string.Empty, DateTime.MinValue, DateTime.MinValue) { }
+    protected Event()
+    {
+        Id = null!;
+        Title = null!;
+    }
 
     // Vår huvudsakliga konstruktor som tvingar fram affärsreglerna vid skapande!
-    public Event(string courseId, string title, DateTime startTime, DateTime endTime)
+    public Event(int courseId, string title, DateTimeOffset startTime, DateTimeOffset endTime)
     {
         // 💡 Domänregel 1: Starttid måste vara före sluttid
         if (startTime >= endTime)
@@ -15,7 +19,7 @@ public class Event
         }
 
         // 💡 Domänregel 2: Får inte skapas i dåtid
-        if (startTime < DateTime.UtcNow)
+        if (startTime < DateTimeOffset.UtcNow)
         {
             throw new ArgumentException("Du kan inte schemalägga ett event i dåtid.");
         }
@@ -27,7 +31,7 @@ public class Event
         EndTime = endTime;
     }
 
-    public void UpdateDetails(string title, DateTime startTime, DateTime endTime)
+    public void UpdateDetails(string title, DateTimeOffset startTime, DateTimeOffset endTime)
     {
         // 💡 Samma domänregler måste gälla vid en uppdatering!
         if (startTime >= endTime)
@@ -35,7 +39,7 @@ public class Event
             throw new ArgumentException("Ett event kan inte sluta innan eller samtidigt som det startar.");
         }
 
-        if (startTime < DateTime.UtcNow)
+        if (startTime < DateTimeOffset.UtcNow)
         {
             throw new ArgumentException("Du kan inte schemalägga ett event i dåtid.");
         }
@@ -46,10 +50,10 @@ public class Event
     }
 
     public string Id { get; private set; }
-    public string CourseId { get; private set; }
+    public int CourseId { get; private set; }
     public string Title { get; private set; }
-    public DateTime StartTime { get; private set; } // Sätt till private set för att skydda datan!
-    public DateTime EndTime { get; private set; }   // Sätt till private set för att skydda datan!
+    public DateTimeOffset StartTime { get; private set; } // Sätt till private set för att skydda datan!
+    public DateTimeOffset EndTime { get; private set; }   // Sätt till private set för att skydda datan!
 
     public ICollection<Classroom> Classrooms { get; set; } = [];
 }
