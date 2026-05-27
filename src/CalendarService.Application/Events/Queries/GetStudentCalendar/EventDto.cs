@@ -2,8 +2,8 @@
 
 public sealed record EventDto(
     string Id,
-    string CourseId,
+    int CourseId,
     string Title,
-    DateTime StartTime,
-    DateTime EndTime
+    DateTimeOffset StartTime,
+    DateTimeOffset EndTime
 );
