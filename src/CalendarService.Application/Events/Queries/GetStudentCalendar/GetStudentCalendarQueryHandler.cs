@@ -1,50 +1,53 @@
 ﻿using CalendarService.Application.Dtos.Results;
 using CalendarService.Application.Interfaces;
-using CalendarService.Application.Interfaces.External;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace CalendarService.Application.Events.Queries.GetStudentCalendar;
 
-public class GetStudentCalendarQueryHandler(
-    ICourseServiceClient courseServiceClient,
-    IEventRepository eventRepository)
+// 1. Vi talar om för MediatR att detta är en godkänd arbetare för denna query
+public class GetStudentCalendarQueryHandler : IRequestHandler<GetStudentCalendarQuery, Result<IEnumerable<EventDto>>>
 {
-    private readonly ICourseServiceClient _courseServiceClient = courseServiceClient;
-    private readonly IEventRepository _eventRepository = eventRepository;
+    private readonly IAppDbContext _context;
 
-    // 💡 Det är denna metod som ditt API kommer att ropa på
-    public async Task<Result<IEnumerable<EventDto>>> HandleAsync(GetStudentCalendarQuery query)
+    // 2. Vi injectar vårt nya IAppDbContext för att läsa direkt från vår SQLite-databas
+    public GetStudentCalendarQueryHandler(IAppDbContext context)
     {
-        // 1. Fråga externa tjänsten vilka kurser studenten läser
-        var coursesResult = await _courseServiceClient.GetUserCoursesIdsAsync(query.UserId);
+        _context = context;
+    }
 
-        if (!coursesResult.Succeeded || coursesResult.Value == null)
+    // 3. MediatR kräver att metoden heter Handle och matchar interfacet
+    public async Task<Result<IEnumerable<EventDto>>> Handle(GetStudentCalendarQuery request, CancellationToken cancellationToken)
+    {
+        // Steg 1: Hämta alla kurs-IDn som den här studenten är registrerad på från VÅR lokala tabell
+        var studentCourseIds = await _context.StudentCourses
+            .Where(sc => sc.UserId == request.UserId)
+            .Select(sc => sc.CourseId)
+            .ToListAsync(cancellationToken);
+
+        if (!studentCourseIds.Any())
         {
-            return Result<IEnumerable<EventDto>>.Fail("Kunde inte hämta studentens kurser.");
+            // Om studenten inte är registrerad på några kurser, returnera en tom lista (inget schema)
+            return Result<IEnumerable<EventDto>>.Success(Enumerable.Empty<EventDto>());
         }
 
-        var allEvents = new List<EventDto>();
+        // Steg 2: Hämta alla events från databasen som matchar studentens kurser i en enda snabb databasfråga!
+        // (SQL-motsvarigheten till en "IN"-clausa: WHERE CourseId IN (1, 2, 3))
+        var calendarEvents = await _context.Events
+            .Where(e => studentCourseIds.Contains(e.CourseId))
+            .OrderBy(e => e.StartTime)
+            .ToListAsync(cancellationToken);
 
-        // 2. Loopa igenom alla kurs-IDn och hämta kalenderevents från VÅR databas
-        foreach (var courseId in coursesResult.Value)
-        {
-            var eventsResult = await _eventRepository.GetByCourseIdAsync(courseId);
+        // Steg 3: Mappa om domän-entiteterna till rena, fina EventDto:s
+        var eventDtos = calendarEvents.Select(e => new EventDto(
+            e.Id,
+            e.CourseId,
+            e.Title,
+            e.StartTime,
+            e.EndTime
+        ));
 
-            if (eventsResult.Succeeded && eventsResult.Value != null)
-            {
-                // 3. Mappa om Domän-entiteterna till våra rena EventDto:s
-                var dtos = eventsResult.Value.Select(e => new EventDto(
-                    e.Id,
-                    e.CourseId,
-                    e.Title,
-                    e.StartTime,
-                    e.EndTime
-                ));
-
-                allEvents.AddRange(dtos);
-            }
-        }
-
-        // 4. Returnera den färdiga listan med DTOs, sorterad på starttid!
-        return Result<IEnumerable<EventDto>>.Success(allEvents.OrderBy(e => e.StartTime));
+        // Steg 4: Returnera succé-resultatet!
+        return Result<IEnumerable<EventDto>>.Success(eventDtos);
     }
 }

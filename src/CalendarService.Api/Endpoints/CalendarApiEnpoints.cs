@@ -21,23 +21,7 @@ public static class CalendarApiEnpoints
             .WithTags("Calendar")
             .WithDescription("Endpoints för att hantera studenters kalendrar och events");
 
-        // 💡 1. GET: Hämta en students hela kalender
-        // Tillåter: Student, Instructor, Admin (Alla inloggade roller)
-        group.MapGet("/student/{userId}", async (
-            string userId,
-            [FromServices] GetStudentCalendarQueryHandler handler) =>
-        {
-            var query = new GetStudentCalendarQuery(userId);
-            var result = await handler.HandleAsync(query);
-
-            return result.Succeeded
-                ? Results.Ok(result.Value)
-                : Results.BadRequest(result.ErrorMessage);
-        });
-        //.RequireAuthorization(new AuthorizeAttribute { Roles = "Student,Instructor,Admin" });
-
-        // 💡 2. GET: Hämta ett specifikt event på ID
-        // Tillåter: Student, Instructor, Admin
+        // 💡 1. GET: Hämta ett specifikt event på ID
         group.MapGet("/event/{id}", async (
             string id,
             [FromServices] GetEventByIdQueryHandler handler) =>
@@ -45,72 +29,45 @@ public static class CalendarApiEnpoints
             var query = new GetEventByIdQuery(id);
             var result = await handler.HandleAsync(query);
 
-            return result.Succeeded
-                ? Results.Ok(result.Value)
-                : Results.NotFound(result.ErrorMessage);
+            return result.Succeeded ? Results.Ok(result.Value) : Results.NotFound(result.ErrorMessage);
         });
-        //.RequireAuthorization(new AuthorizeAttribute { Roles = "Student,Instructor,Admin" });
 
-        // 💡 3. POST: Skapa ett nytt event
-        // Tillåter: ENDAST Instructor och Admin
-        group.MapPost("/event", async (
-            [FromBody] CreateEventCommand command,
-            [FromServices] CreateEventCommandHandler handler) =>
+        // 💡 2. POST: Skapa ett nytt event
+        group.MapPost("/event", async ([FromBody] CreateEventCommand command, [FromServices] CreateEventCommandHandler handler) =>
         {
             var result = await handler.HandleAsync(command);
-
-            return result.Succeeded
-                ? Results.Created($"/api/calendar/event", result)
-                : Results.BadRequest(result.ErrorMessage);
+            return result.Succeeded ? Results.Created($"/api/calendar/event", result) : Results.BadRequest(result.ErrorMessage);
         });
-        //.RequireAuthorization(new AuthorizeAttribute { Roles = "Instructor,Admin" });
 
-        // 💡 4. PUT: Uppdatera ett befintligt event
-        // Tillåter: ENDAST Instructor och Admin
+        // 💡 3. PUT: Uppdatera ett befintligt event
         group.MapPut("/event", async (
             [FromBody] UpdateEventCommand command,
-            [FromServices] UpdateEventCommandHandler handler) =>
+            [FromServices] UpdateEventCommandHandler handler)
+        =>
         {
             var result = await handler.HandleAsync(command);
-
-            return result.Succeeded
-                ? Results.Ok("Eventet har uppdaterats framgångsrikt.")
-                :
-                Results.BadRequest(result.ErrorMessage);
+            return result.Succeeded ? Results.Ok("Eventet har uppdaterats framgångsrikt.") : Results.BadRequest(result.ErrorMessage);
         });
-        //.RequireAuthorization(new AuthorizeAttribute { Roles = "Instructor,Admin" });
 
-        // 💡 5. DELETE: Ta bort ett event
-        // Tillåter: ENDAST Instructor och Admin
-        group.MapDelete("/event/{id}", async (
-            string id,
-            [FromServices] DeleteEventCommandHandler handler) =>
+        // 💡 4. DELETE: Ta bort ett event
+        group.MapDelete("/event/{id}", async (string id, [FromServices] DeleteEventCommandHandler handler) =>
         {
             var command = new DeleteEventCommand(id);
             var result = await handler.HandleAsync(command);
-
-            return result.Succeeded
-                ? Results.Ok("Eventet har tagits bort.")
-                : Results.BadRequest(result.ErrorMessage);
+            return result.Succeeded ? Results.Ok("Eventet har tagits bort.") : Results.BadRequest(result.ErrorMessage);
         });
-        //.RequireAuthorization(new AuthorizeAttribute { Roles = "Instructor,Admin" });
 
-        // 💡 NY: GET: Hämta ALLA events i hela databasen (Öppet schema)
-        group.MapGet("/all", async (
-            [FromServices] GetAllEventsQueryHandler handler) =>
+        // 💡 5. GET: Hämta ALLA events i hela databasen
+        group.MapGet("/all", async ([FromServices] GetAllEventsQueryHandler handler) =>
         {
             var result = await handler.HandleAsync();
-
-            return result.Succeeded
-                ? Results.Ok(result.Value)        // Ändrade till result.Value för att matcha din Result-struktur
-                : Results.BadRequest(result.ErrorMessage); // Ändrade till result.ErrorMessage
+            return result.Succeeded ? Results.Ok(result.Value) : Results.BadRequest(result.ErrorMessage);
         });
 
+        // 🚀 NEW MEDIATR ENDPOINTS:
 
-        // 1. POST: Registrera en student på en kurs internt
-        group.MapPost("/student/register", async (
-            RegisterStudentCourseRequest model,
-            [FromServices] IMediator mediator) =>
+        // 💡 6. POST: Registrera en student på en kurs internt i vår SQLite-cache
+        group.MapPost("/student/register", async (RegisterStudentCourseRequest model, [FromServices] IMediator mediator) =>
         {
             var command = new RegisterStudentCourseCommand(model.UserId, model.CourseId);
             var result = await mediator.Send(command);
@@ -121,17 +78,15 @@ public static class CalendarApiEnpoints
         })
         .WithName("RegisterStudentCourse");
 
-        // 2. GET: Hämta kalendern baserat på UserId
-        group.MapGet("/student/{userId}/calendar", async (
-            string userId,
-            [FromServices] IMediator mediator) =>
+        // 💡 7. GET: Hämta kalendern baserat på lokala registreringar via MediatR
+        group.MapGet("/student/{userId}/calendar", async (string userId, [FromServices] IMediator mediator) =>
         {
             var query = new GetStudentCalendarQuery(userId);
-            var calendar = await mediator.Send(query);
+            var result = await mediator.Send(query); // Returnerar ditt Result<IEnumerable<EventDto>>
 
-            return Results.Ok(calendar);
+            return result.Succeeded ? Results.Ok(result.Value) : Results.BadRequest(result.ErrorMessage);
         })
-        .WithName("GetStudentCalendar"); 
+        .WithName("GetStudentCalendar");
     }
 
 }
